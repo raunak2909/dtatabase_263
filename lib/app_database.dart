@@ -1,4 +1,5 @@
 import 'package:dtatabase_263/main.dart';
+import 'package:dtatabase_263/note_model.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -25,7 +26,8 @@ class AppDatabase {
       return mDB!;
     } else {
       //openDB
-      return await openDB();
+      mDB = await openDB();
+      return mDB!;
     }
   }
 
@@ -42,39 +44,55 @@ class AppDatabase {
       //Tables
 
       /// run any sql query
-      db.execute(
-          "create table $TABLE_NOTE ($COLUMN_NOTE_ID integer primary key autoincrement, $COLUMN_NOTE_TITLE text, $COLUMN_NOTE_DESC text)");
+      db.execute("create table $TABLE_NOTE ($COLUMN_NOTE_ID integer primary key autoincrement, $COLUMN_NOTE_TITLE text, $COLUMN_NOTE_DESC text)");
     });
   }
 
   ///queries
 
   //create(insert)
-  Future<bool> insertNote({required String title, required String desc}) async{
+  Future<bool> insertNote({required NoteModel note}) async{
 
     var mainDB = await getDB();
 
-    int rowsEffect = await mainDB.insert(TABLE_NOTE, {
-      COLUMN_NOTE_TITLE : title,
-      COLUMN_NOTE_DESC : desc,
-    });
+    int rowsEffect = await mainDB.insert(TABLE_NOTE, note.toMap());
 
     return rowsEffect>0;
   }
 
   //read(fetch)
-  Future<List<Map<String, dynamic>>> fetchAllNotes() async{
+  Future<List<NoteModel>> fetchAllNotes() async{
 
     var mainDB = await getDB();
-    List<Map<String, dynamic>> mNotes = [];
+    List<NoteModel> mNotes = [];
 
     try {
-      mNotes = await mainDB.query(TABLE_NOTE);
+      List<Map<String, dynamic>> allNotes = await mainDB.query(TABLE_NOTE);
+
+      for(Map<String, dynamic> eachNote in allNotes){
+        mNotes.add(NoteModel.fromMap(eachNote));
+      }
+
     } catch(e){
       print("Error: ${e.toString()}");
     }
 
     return mNotes;
   }
+
+  Future<bool> updateNote({required String title, required String desc, required int id}) async{
+    var mainDB = await getDB();
+
+    int rowsEffect = await mainDB.update(TABLE_NOTE, {
+      COLUMN_NOTE_TITLE : title,
+      COLUMN_NOTE_DESC : desc,
+    }, where: "$COLUMN_NOTE_ID = ?", whereArgs: ['$id']);
+
+    return rowsEffect>0;
+  }
+
+  /// all queries work
+
+
 
 }
