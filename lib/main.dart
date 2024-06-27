@@ -1,7 +1,10 @@
 import 'package:dtatabase_263/app_database.dart';
+import 'package:dtatabase_263/cubit/db_cubit.dart';
+import 'package:dtatabase_263/cubit/db_state.dart';
 import 'package:dtatabase_263/db_provider.dart';
 import 'package:dtatabase_263/note_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -20,8 +23,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: ChangeNotifierProvider(
-        create: (context) => DBProvider(),
+      home: BlocProvider<DBCubit>(
+        create: (context) => DBCubit(db: AppDatabase.db),
         child: HomePage(),
       ),
     );
@@ -57,38 +60,47 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text('Notes'),
       ),
-      body: Consumer<DBProvider>(
-        builder: (ctx, provider, __){
-          allNotes = provider.getAllNotes();
-          return allNotes.isNotEmpty
-              ? ListView.builder(
-              itemCount: allNotes.length,
-              itemBuilder: (_, index) {
-                return ListTile(
-                  onTap: (){
-                    titleController.text = allNotes[index].title;
-                    descController.text = allNotes[index].desc;
-                    showModalBottomSheet(
-                        context: context,
-                        builder: (_) {
-                          return bottomSheetUI(isUpdate: true, mId: allNotes[index].id!);
-                        },
-                        /*enableDrag: false,
+      body: BlocBuilder<DBCubit, DBState>(
+        builder: (_, state){
+          if(state is DBLoadingState){
+            return Center(child: CircularProgressIndicator(),);
+          } else if(state is DBErrorState){
+            return Center(
+              child: Text('Error: ${state.errorMsg}'),
+            );
+          } else if(state is DBLoadedState){
+            return state.mData.isNotEmpty
+                ? ListView.builder(
+                itemCount: state.mData.length,
+                itemBuilder: (_, index) {
+                  return ListTile(
+                    onTap: (){
+                      titleController.text = state.mData[index].title;
+                      descController.text = state.mData[index].desc;
+                      showModalBottomSheet(
+                          context: context,
+                          builder: (_) {
+                            return bottomSheetUI(isUpdate: true, mId: state.mData[index].id!);
+                          },
+                          /*enableDrag: false,
            isDismissible: false,*/ /* barrierColor: Colors.blue.shade100,*/
-                        backgroundColor: Colors.blue.shade200,
-                        shape: RoundedRectangleBorder(
-                            borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(43))));
-                  },
-                  leading: Text('${allNotes[index].id}'),
-                  title: Text(allNotes[index].title),
-                  subtitle: Text(allNotes[index].desc),
-                  trailing: Icon(Icons.delete, color: Colors.red,),
-                );
-              })
-              : Center(
-            child: Text('No Notes yet!!'),
-          );
+                          backgroundColor: Colors.blue.shade200,
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(43))));
+                    },
+                    leading: Text('${index+1}'),
+                    title: Text(state.mData[index].title),
+                    subtitle: Text(state.mData[index].desc),
+                    trailing: Icon(Icons.delete, color: Colors.red,),
+                  );
+                })
+                : Center(
+              child: Text('No Notes yet!!'),
+            );
+          } else {
+            return Container();
+          }
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -182,7 +194,8 @@ class _HomePageState extends State<HomePage> {
 
                         // bool check = false;
 
-                        context.read<DBProvider>().addNote(newNote: NoteModel(title: titleController.text, desc: descController.text));
+                        //BlocProvider.of<DBCubit>(context).addNote(newNote: NoteModel(title: titleController.text, desc: descController.text));
+                        context.read<DBCubit>().addNote(newNote: NoteModel(title: titleController.text, desc: descController.text));
                         titleController.clear();
                         descController.clear();
                         Navigator.pop(context);
